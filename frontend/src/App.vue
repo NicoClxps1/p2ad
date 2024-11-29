@@ -1,194 +1,294 @@
 <template>
-  <div class="container">
-    <header>
+  <div id="app">
+    <header class="header">
       <h1>PR UD 2</h1>
     </header>
 
-    <main>
-      <!-- Panel izquierdo -->
+    <div class="main-container">
+      <!-- Storage Selector -->
       <aside class="sidebar">
-        <button 
-          class="sidebar-button" 
-          v-for="option in options" 
-          :key="option"
-          @click="selectOption(option)"
-          :class="{ active: selectedOption === option }"
-        >
-          {{ option }}
-        </button>
+        <ul>
+          <li :class="{ active: selectedStorage === 'class' }" @click="selectStorage('class')">
+            Class Storage
+          </li>
+          <li :class="{ active: selectedStorage === 'json' }" @click="selectStorage('json')">
+            JSON
+          </li>
+          <li :class="{ active: selectedStorage === 'csv' }" @click="selectStorage('csv')">
+            CSV
+          </li>
+        </ul>
       </aside>
 
-      <!-- Panel central -->
-      <section class="main-content">
-        <div class="actions">
-          <button @click="getFiles">Get Files</button>
-          <button @click="storeFile">Store</button>
-          <button @click="showFile">Show</button>
-          <button @click="updateFile">Update</button>
-          <button @click="deleteFile">Delete</button>
+      <!-- Content Section -->
+      <section class="content">
+        <div class="actions-grid">
+          <button @click="getFiles" class="action-btn">Get Files</button>
+          <button @click="prepareStoreFile" class="action-btn">Store</button>
+          <button @click="prepareShowFile" class="action-btn">Show</button>
+          <button @click="prepareUpdateFile" class="action-btn">Update</button>
+          <button @click="prepareDeleteFile" class="action-btn">Delete</button>
         </div>
 
-        <div class="response">
-          <pre>{{ response }}</pre>
+        <!-- Inputs Section -->
+        <div v-if="showInput" class="input-group">
+          <input v-model="filename" placeholder="Enter filename" class="input-field" />
+          <button @click="send" class="input-btn">Send</button>
         </div>
 
-        <button class="send-button" @click="sendData">Send</button>
+        <div v-if="storeInput" class="input-group">
+          <input v-model="filename" placeholder="Enter filename" class="input-field" />
+          <textarea v-model="fileContent" placeholder="Enter file content" class="textarea-field"></textarea>
+          <button @click="storeFile" class="input-btn">Save</button>
+        </div>
+
+        <div v-if="updateInput" class="input-group">
+          <input v-model="filename" placeholder="Enter filename" class="input-field" />
+          <textarea v-model="fileContent" placeholder="Enter new content" class="textarea-field"></textarea>
+          <button @click="updateFile" class="input-btn">Update</button>
+        </div>
+
+        <div v-if="deleteInput" class="input-group">
+          <input v-model="filename" placeholder="Enter filename to delete" class="input-field" />
+          <button @click="deleteFile" class="input-btn">Delete</button>
+        </div>
+
+        <!-- Result Section -->
+        <div class="results">
+          <h2>Results</h2>
+          <pre>{{ result }}</pre>
+        </div>
       </section>
-    </main>
+    </div>
   </div>
 </template>
 
-<script setup>
-import { ref } from 'vue';
+<script>
+import axios from "axios";
 
-// Opciones del panel izquierdo
-const options = ref(['Class Storage', 'JSON', 'CSV', 'XML']);
-const selectedOption = ref('Class Storage');
-
-// Datos simulados para mostrar la respuesta
-const response = ref({
-  mensaje: 'Listado de ficheros',
-  contenido: ['.gitignore'],
-});
-
-// Métodos de ejemplo
-const selectOption = (option) => {
-  selectedOption.value = option;
-};
-
-const getFiles = () => {
-  response.value = { mensaje: 'Listado de ficheros', contenido: ['file1.txt', 'file2.csv'] };
-};
-
-const storeFile = () => {
-  response.value = { mensaje: 'Archivo guardado exitosamente' };
-};
-
-const showFile = () => {
-  response.value = { mensaje: 'Detalles del archivo', contenido: 'Contenido del archivo mostrado' };
-};
-
-const updateFile = () => {
-  response.value = { mensaje: 'Archivo actualizado correctamente' };
-};
-
-const deleteFile = () => {
-  response.value = { mensaje: 'Archivo eliminado correctamente' };
-};
-
-const sendData = () => {
-  response.value = { mensaje: 'Datos enviados correctamente' };
+export default {
+  data() {
+    return {
+      selectedStorage: "class",
+      result: "",
+      filename: "",
+      fileContent: "",
+      showInput: false,
+      storeInput: false,
+      updateInput: false,
+      deleteInput: false,
+    };
+  },
+  methods: {
+    selectStorage(storage) {
+      this.selectedStorage = storage;
+      this.resetInputs();
+    },
+    resetInputs() {
+      this.result = "";
+      this.filename = "";
+      this.fileContent = "";
+      this.showInput = false;
+      this.storeInput = false;
+      this.updateInput = false;
+      this.deleteInput = false;
+    },
+    getApiUrl(action = "", id = "") {
+      const baseUrls = {
+        class: "http://localhost:8000/api/hello",
+        json: "http://localhost:8000/api/json",
+        csv: "http://localhost:8000/api/csv",
+      };
+      return `${baseUrls[this.selectedStorage]}${id ? `/${id}` : ""}`;
+    },
+    async getFiles() {
+      try {
+        const url = this.getApiUrl();
+        const response = await axios.get(url);
+        this.result = JSON.stringify(response.data, null, 2);
+      } catch (error) {
+        this.result = `Error: ${error.response?.status} - ${error.response?.data?.mensaje || error.message}`;
+      }
+    },
+    prepareShowFile() {
+      this.resetInputs();
+      this.showInput = true;
+    },
+    async send() {
+      try {
+        if (!this.filename) {
+          this.result = "Please provide a filename.";
+          return;
+        }
+        const url = this.getApiUrl("", this.filename);
+        const response = await axios.get(url);
+        this.result = JSON.stringify(response.data, null, 2);
+      } catch (error) {
+        this.result = `Error: ${error.response?.status} - ${error.response?.data?.mensaje || error.message}`;
+      }
+    },
+    prepareStoreFile() {
+      this.resetInputs();
+      this.storeInput = true;
+    },
+    async storeFile() {
+      try {
+        if (!this.filename || !this.fileContent) {
+          this.result = "Please provide a filename and content.";
+          return;
+        }
+        const url = this.getApiUrl();
+        const response = await axios.post(url, {
+          filename: this.filename,
+          content: this.fileContent,
+        });
+        this.result = JSON.stringify(response.data, null, 2);
+      } catch (error) {
+        this.result = `Error: ${error.response?.status} - ${error.response?.data?.mensaje || error.message}`;
+      }
+    },
+    prepareUpdateFile() {
+      this.resetInputs();
+      this.updateInput = true;
+    },
+    async updateFile() {
+      try {
+        if (!this.filename || !this.fileContent) {
+          this.result = "Please provide a filename and content.";
+          return;
+        }
+        const url = this.getApiUrl("", this.filename);
+        const response = await axios.put(url, { content: this.fileContent });
+        this.result = JSON.stringify(response.data, null, 2);
+      } catch (error) {
+        this.result = `Error: ${error.response?.status} - ${error.response?.data?.mensaje || error.message}`;
+      }
+    },
+    prepareDeleteFile() {
+      this.resetInputs();
+      this.deleteInput = true;
+    },
+    async deleteFile() {
+      try {
+        if (!this.filename) {
+          this.result = "Please provide a filename.";
+          return;
+        }
+        const url = this.getApiUrl("", this.filename);
+        const response = await axios.delete(url);
+        this.result = JSON.stringify(response.data, null, 2);
+      } catch (error) {
+        this.result = `Error: ${error.response?.status} - ${error.response?.data?.mensaje || error.message}`;
+      }
+    },
+  },
 };
 </script>
 
 <style scoped>
-/* Contenedor principal */
-.container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
+body {
   font-family: Arial, sans-serif;
-  height: 100vh; /* Ocupa toda la altura de la página */
-  box-sizing: border-box;
-}
-
-/* Encabezado */
-header {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-/* Contenedor principal */
-main {
-  display: flex;
-  width: 100%;
-  height: 100%; /* Asegura que ocupe el resto de la pantalla */
-  max-width: 1200px; /* Ancho máximo */
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  border: 1px solid #ddd;
-  background-color: #fff;
-}
-
-/* Sidebar (panel izquierdo) */
-.sidebar {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid #ddd;
-  padding: 10px;
-  background-color: #f8f8f8;
-}
-
-.sidebar-button {
-  padding: 15px;
-  margin-bottom: 15px;
-  font-size: 18px; /* Botones más grandes */
-  background-color: #f0f0f0;
-  border: 1px solid #ddd;
-  cursor: pointer;
-  text-align: left;
-}
-
-.sidebar-button.active {
-  background-color: #007bff;
-  color: white;
-}
-
-/* Contenido principal */
-.main-content {
-  flex: 3;
-  padding: 30px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.actions {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.actions button {
-  padding: 15px 20px;
-  font-size: 16px; /* Tamaño de texto más grande */
-  border: 1px solid #ddd;
-  background-color: #f8f8f8;
-  cursor: pointer;
-}
-
-.actions button:hover {
-  background-color: #007bff;
-  color: white;
-}
-
-/* Sección de respuesta */
-.response {
-  flex-grow: 1;
-  border: 1px solid #ddd;
-  background-color: #f9f9f9;
-  padding: 15px;
-  font-size: 16px;
-  overflow: auto;
-}
-
-pre {
+  background-color: #f9fafc;
   margin: 0;
+  padding: 0;
 }
-
-/* Botón enviar */
-.send-button {
-  padding: 15px 30px;
-  border: none;
-  background-color: #28a745;
-  color: white;
-  font-size: 16px;
+.header {
+  background: #333;
+  color: #fff;
+  padding: 1em;
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+}
+.main-container {
+  display: flex;
+  height: calc(100vh - 100px);
+  padding: 1em;
+  gap: 1em;
+}
+.sidebar {
+  width: 200px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+}
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+.sidebar li {
+  padding: 10px;
+  margin: 5px 0;
+  text-align: center;
   cursor: pointer;
-  align-self: flex-end; /* Botón alineado a la derecha */
+  transition: all 0.3s ease;
+  border-radius: 6px;
+  font-weight: bold;
 }
-
-.send-button:hover {
-  background-color: #218838;
+.sidebar li.active,
+.sidebar li:hover {
+  background: #007bff;
+  color: #fff;
+}
+.content {
+  flex: 1;
+  padding: 20px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+.actions-grid {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.action-btn {
+  background: #007bff;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+.action-btn:hover {
+  background: #0056b3;
+}
+.input-group {
+  margin-top: 20px;
+}
+.input-field,
+.textarea-field {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.input-btn {
+  background: #28a745;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.input-btn:hover {
+  background: #218838;
+}
+.results {
+  margin-top: 20px;
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+.results pre {
+  font-size: 14px;
+  color: #333;
 }
 </style>
